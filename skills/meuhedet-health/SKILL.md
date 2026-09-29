@@ -1,6 +1,6 @@
 ---
 name: meuhedet-health
-description: Use the local meuhedet-health checkout or an already configured Meuhedet MCP server to read the user's own dashboard lab stickers, current prescription summary, future appointments, visit approvals, or visit referrals. The project is unofficial and experimental; it does not provide numeric lab results or full lab history.
+description: Use the local Meuhedet client or configured MCP server to retrieve the user's own lab lists, individual lab results, prescriptions, appointments, approvals, or referrals. Initiate local browser sign-in when no valid session exists; never require user-run scripts.
 license: MIT
 metadata:
   version: "0.1.0"
@@ -8,12 +8,14 @@ metadata:
 
 # Meuhedet Health
 
-Use only the local `meuhedet-health` implementation or a Meuhedet MCP server already configured by the user. This project has no verified npm registry installation path. Do not install or invoke the upstream Maccabi Health package as a substitute.
+Use the local checkout or an already configured Meuhedet MCP server. The implementation is unofficial and experimental; authenticated OTP/OIDC and API responses have not been live-validated. Never substitute the upstream Maccabi package or assume a verified npm installation exists.
 
-Before reading records, explain that the implementation is experimental and that its authenticated reads have not been live-validated. The lab command returns dashboard stickers only, not individual numeric results or complete lab history. Other record retention and completeness are unknown. An empty response does not establish that no record exists.
+The agent handles dependency installation, building, sign-in initiation, and data retrieval. Check `node dist/cli.js status` first. With no usable session and a connected MCP Apps host, call `meuhedet_sign_in` and let the user enter credentials in its inline component. Never call the app-only `meuhedet_sign_in_action` from the model. Without a native component, start `node dist/cli.js login --browser` as a running process. Open the returned private local `url` directly for the user. Ask them only to enter their ID, phone number, and SMS code in that form. Never ask them to run a script or place credentials in chat, command arguments, or MCP inputs. Treat the complete sign-in link as private; never forward it to another service. Wait for `sessionSaved: true` and exit code 0 before reads. On failure, cancellation, or expiry, report the safe error; do not retry OTPs, guess portal fields, claim success, or bypass browser security controls.
 
-Use an existing local session when available. If sign-in is needed, have the user run `node dist/cli.js login` in their own private terminal so they enter their ID, phone number, and SMS code directly. Do not ask them to put these values in chat or pass them as command arguments. The flow parses the known first-step login form and looks for OTP controls dynamically, but the OTP form and OIDC exchange have only been tested with synthetic fixtures; a changed portal form may cause it to fail closed. Do not retry codes or guess portal fields.
+Use a saved session for subsequent reads. `status` reports local file presence only, not upstream validity. If a read reports expiry, initiate a fresh sign-in. `logout` removes the local session but does not revoke Meuhedet's portal session.
 
-Read only the record category the user requests, using the CLI command or already configured MCP tool matching that category. Keep results private and return a concise, faithful summary. Do not expose raw session data, cookies, identifiers, HAR files, or unnecessary clinical details. Never save health data to files or send it to another service unless the user explicitly asks.
+Read only the category requested. Lab commands include `lab-stickers` (dashboard summary), `lab-results --from YYYY-MM-DD --to YYYY-MM-DD` (date-filtered list), and `lab-result --lab-code CODE --sticker-id ID --date YYYYMMDD` (individual details). Choose detail references from the returned list, never guessed identifiers. Check the result's date, units, reference ranges, and completeness before analysis. Other commands and MCP tools are listed in [capabilities](../../docs/CAPABILITIES.md).
 
-Available CLI reads are `lab-stickers`, `prescriptions`, `future-appointments`, `visit-approvals`, and `visit-referrals`. `status` reports local session-file presence only; it does not verify the session with Meuhedet. See the repository's [capabilities](../../docs/CAPABILITIES.md), [authentication notes](../../docs/AUTH.md), and [CLI reference](../../docs/CLI.md) for current limits and behavior.
+Keep results private. Do not expose session data, cookies, identifiers, HAR files, or unnecessary clinical details. Never save medical results to files or send them to another service unless the user explicitly requests it. Public medical research must not include patient identifiers or raw patient results in search queries. Empty or missing records do not establish complete history or absence of care.
+
+See [authentication](../../docs/AUTH.md) and [CLI reference](../../docs/CLI.md) for lifecycle and limitations.

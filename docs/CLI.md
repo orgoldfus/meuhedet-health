@@ -12,6 +12,8 @@ The CLI has no published npm installation instructions yet. Do not use `npx meuh
 
 | Command | Behavior |
 |---|---|
+| `login --browser` | Agent starts a temporary local sign-in form and opens the returned link for the user. Waits for saved session or safe failure; no terminal input. |
+| `login --help` | Shows sign-in options. |
 | `login` | Interactively asks for ID number, mobile number, and SMS code. Parses the known first-step form and dynamically looks for OTP controls, then checks for an authenticated lab-sticker response before saving. OTP form parsing uses synthetic fixtures only; no live account run was done, and unfamiliar portal changes may be rejected. |
 | `session-import [--file PATH]` | Reads serialized session JSON from a private file or stdin and validates it before saving. |
 | `status` | Reports whether a local session file exists; does not verify it upstream. |

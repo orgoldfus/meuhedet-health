@@ -22,10 +22,12 @@ npm run build
 node dist/cli.js help
 ```
 
+A connected MCP Apps host can display the sign-in form inside the chat using `meuhedet_sign_in`; see [setup](docs/MCP.md). Without native UI support, the agent starts `login --browser`, opens the returned private local link, and waits while you enter your sign-in details and SMS code. You do not need to run commands yourself. The current login protocol remains experimental and has not been live-validated.
+
 Commands include:
 
 ```sh
-node dist/cli.js login
+node dist/cli.js login --browser
 node dist/cli.js lab-stickers
 node dist/cli.js lab-results --from 2026-01-01 --to 2026-09-29
 # Use LabCode, StickerId and TestDate from a returned record:

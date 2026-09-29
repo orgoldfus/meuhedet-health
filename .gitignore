@@ -48,6 +48,7 @@ exports/
 
 # Local session files and private key material
 session.json
+sign-in-profile.json
 *.pem
 *.key
 *.p12

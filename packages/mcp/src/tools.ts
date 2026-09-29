@@ -2,6 +2,7 @@ import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
 import { MeuhedetClient, MeuhedetError, ReauthenticationRequired, safeClinical, type MeuhedetSession } from "@meuhedet/core";
 import { FileSessionStore, type SessionStore } from "@meuhedet/cli/store";
+import { registerSignIn, type SignInAuth, type LoginDetails } from "./sign-in";
 
 export interface ReaderOperations {
   labStickers(): Promise<unknown>;
@@ -19,7 +20,10 @@ export interface ReaderOperations {
 }
 export interface McpOptions {
   store?: SessionStore<MeuhedetSession>;
+  profileStore?: SessionStore<LoginDetails>;
   connect?: (session: MeuhedetSession) => ReaderOperations;
+  createAuth?: () => SignInAuth;
+  now?: () => number;
 }
 const MAX_JSON_BYTES = 128 * 1024;
 function calendarDate(value: string, compact = false): boolean {
@@ -43,14 +47,15 @@ function failure(code: string, instruction: string): CallToolResult {
   return { content: [{ type: "text", text: JSON.stringify(value) }], structuredContent: value, isError: true };
 }
 
-/** Local server: no login credentials, HTTP listener or record-changing tool. */
+/** Credentials are accepted only through app-only sign-in tools, never model-visible readers. */
 export function createMeuhedetMcpServer(options: McpOptions = {}): McpServer {
   const store = options.store ?? new FileSessionStore<MeuhedetSession>();
   const connect = options.connect ?? ((session: MeuhedetSession) => new MeuhedetClient({ session }));
   const server = new McpServer({ name: "meuhedet-health", version: "0.1.0" }, {
-    instructions: "Read-only Meuhedet account data. A browser session must be imported privately with the CLI first. Source coverage and completeness are not established by an empty result. Preserve Hebrew text, dates and units. Do not assume absence of care from a missing row. Do not send credentials in tool arguments.",
+    instructions: "Read-only Meuhedet account data. Use meuhedet_sign_in for in-chat authentication when supported; login --browser is the fallback. Never call the app-only sign-in action from the model. Source coverage and completeness are not established by an empty result. Preserve Hebrew text, dates and units. Do not assume absence of care from a missing row. Do not send credentials in tool arguments.",
   });
   let tail: Promise<unknown> = Promise.resolve();
+  registerSignIn(server, { store, profileStore: options.profileStore, createAuth: options.createAuth, now: options.now });
   server.registerTool("meuhedet_session_status", {
     description: "Check only whether a local session file exists. This does not verify validity with Meuhedet.",
     inputSchema: z.object({}).strict(),
@@ -63,7 +68,7 @@ export function createMeuhedetMcpServer(options: McpOptions = {}): McpServer {
     const execute = async (): Promise<CallToolResult> => {
       try {
         const session = await store.load();
-        if (!session) return failure("NOT_AUTHENTICATED", "Import a browser session with meuhedet-health session-import in a private terminal.");
+        if (!session) return failure("NOT_AUTHENTICATED", "Call meuhedet_sign_in for a native form, or use login --browser if the host cannot render MCP Apps.");
         const client = connect(session);
         const data = await operation(client);
         await store.save(await client.exportSession());
@@ -72,7 +77,7 @@ export function createMeuhedetMcpServer(options: McpOptions = {}): McpServer {
         // An upstream failure may contain cookies, HTML, or clinical content. Do not serialize it.
         if (error instanceof ReauthenticationRequired) {
           await store.delete().catch(() => undefined);
-          return failure(error.code, "The saved session expired and was removed. Sign in again in a private terminal.");
+          return failure(error.code, "The saved session expired and was removed. Start meuhedet-health login --browser for a fresh sign-in.");
         }
         if (error instanceof MeuhedetError) return failure(error.code, "The Meuhedet read failed. Check the session and retry.");
         return failure("READ_FAILED", "The read failed. Check the session with meuhedet-health status and retry.");

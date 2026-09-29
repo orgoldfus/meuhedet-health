@@ -3,6 +3,7 @@ import { open } from "node:fs/promises";
 import { MeuhedetAuth, MeuhedetClient, MeuhedetError, ReauthenticationRequired, safeClinical, type MeuhedetSession } from "@meuhedet/core";
 import { FileSessionStore, type SessionStore } from "./store";
 import { privatePrompt } from "./prompt";
+import { startBrowserLogin } from "./browser-login";
 
 export interface CliDependencies {
   store: SessionStore<MeuhedetSession>;
@@ -10,6 +11,7 @@ export interface CliDependencies {
   stderr(text: string): void;
   readInput(file?: string): Promise<string>;
   prompt(label: string): Promise<string>;
+  browserLogin: typeof startBrowserLogin;
   createAuth(): {
     beginLogin(details: { username: string; mobilePhoneNumber: string }): Promise<{ id: string; step: "otp" }>;
     completeLogin(id: string, code: string): Promise<MeuhedetSession>;
@@ -54,11 +56,12 @@ function defaults(): CliDependencies {
     stdout: text => process.stdout.write(text), stderr: text => process.stderr.write(text),
     readInput,
     prompt: privatePrompt,
+    browserLogin: startBrowserLogin,
     createAuth: () => new MeuhedetAuth(),
     connect: session => new MeuhedetClient({ session }),
   };
 }
-const HELP = `Usage: meuhedet-health <command>\n\nCommands:\n  login                          Sign in through a private terminal and SMS code.\n  session-import [--file PATH]   Import a private browser session JSON (or read from stdin).\n  status                         Show whether a session is saved locally (validity unverified).\n  logout                         Remove the saved session.\n  lab-stickers                   Read dashboard lab stickers.\n  lab-results --from YYYY-MM-DD --to YYYY-MM-DD\n                                 Read lab stickers in a date window.\n  lab-result --lab-code CODE --sticker-id ID --date YYYYMMDD\n                                 Read one lab sticker detail.\n  prescriptions                  Read the dashboard prescription summary.\n  active-medicines               Read active medicines.\n  medicine-approvals             Read medicine approvals.\n  purchased-medicines            Read purchased medicines.\n  prescription-history           Read prescription history.\n  future-appointments            Read future appointments.\n  visit-approvals                Read online visit approvals.\n  visit-referrals                Read online visit referrals.\n  mcp                            Run the local stdio MCP server.\n  help                           Show this help.\n\nCredentials and session contents are never accepted as arguments.\n`;
+const HELP = `Usage: meuhedet-health <command>\n\nCommands:\n  login [--browser]              Sign in using a local page (agent) or private terminal.\n  session-import [--file PATH]   Import a private browser session JSON (or read from stdin).\n  status                         Show whether a session is saved locally (validity unverified).\n  logout                         Remove the saved session.\n  lab-stickers                   Read dashboard lab stickers.\n  lab-results --from YYYY-MM-DD --to YYYY-MM-DD\n                                 Read lab stickers in a date window.\n  lab-result --lab-code CODE --sticker-id ID --date YYYYMMDD\n                                 Read one lab sticker detail.\n  prescriptions                  Read the dashboard prescription summary.\n  active-medicines               Read active medicines.\n  medicine-approvals             Read medicine approvals.\n  purchased-medicines            Read purchased medicines.\n  prescription-history           Read prescription history.\n  future-appointments            Read future appointments.\n  visit-approvals                Read online visit approvals.\n  visit-referrals                Read online visit referrals.\n  mcp                            Run the local stdio MCP server.\n  help                           Show this help.\n\nCredentials and session contents are never accepted as arguments.\n`;
 function validDate(value: string, compact = false): boolean {
   const match = compact ? /^(\d{4})(\d{2})(\d{2})$/.exec(value) : /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return false;
@@ -91,7 +94,31 @@ export async function runCli(argv: string[], overrides: Partial<CliDependencies>
       return 0;
     }
     if (command === "login") {
-      if (rest.length) throw new Error("Credentials must be entered in a private interactive terminal.");
+      if (rest.length === 1 && rest[0] === "--help") {
+        deps.stdout("Usage: meuhedet-health login [--browser]\n\n--browser  Start a temporary local sign-in page without terminal input.\nThe agent opens the returned URL; the user enters their ID, phone and SMS code there.\nThe command waits until the session is saved, cancelled, failed or expired.\n");
+        return 0;
+      }
+      if (rest.length === 1 && rest[0] === "--browser") {
+        const flow = await deps.browserLogin({ auth: deps.createAuth(), save: session => deps.store.save(session) });
+        const cancel = () => { void flow.close(); };
+        process.once("SIGINT", cancel);
+        process.once("SIGTERM", cancel);
+        try {
+          deps.stdout(`login:\n  status: awaiting_user\n  url: ${JSON.stringify(flow.url)}\n  expiresAt: ${JSON.stringify(flow.expiresAt)}\n`);
+          const error = await flow.completion;
+          if (error) {
+            deps.stdout(`error:\n  code: ${JSON.stringify(error.code)}\n  instruction: "Check the sign-in error before starting a new meuhedet-health login --browser flow."\n`);
+            return 1;
+          }
+          deps.stdout("sessionSaved: true\n");
+          return 0;
+        } finally {
+          process.off("SIGINT", cancel);
+          process.off("SIGTERM", cancel);
+          await flow.close();
+        }
+      }
+      if (rest.length) throw new Error("Unexpected arguments. Use login [--browser]; credentials cannot be passed as arguments.");
       const auth = deps.createAuth();
       try {
         const username = await deps.prompt("ID number: ");
@@ -121,7 +148,7 @@ export async function runCli(argv: string[], overrides: Partial<CliDependencies>
         args = [labCode, stickerId, date];
       } else if (rest.length) throw new Error("Unexpected arguments.");
       const saved = await deps.store.load();
-      if (!saved) throw new Error("No saved session. Import one with session-import.");
+      if (!saved) throw new Error("No saved session. Start login --browser.");
       const client = deps.connect(saved);
       const method = {
         "lab-stickers": "labStickers", prescriptions: "prescriptions", "active-medicines": "activeMedicines", "medicine-approvals": "medicineApprovals", "purchased-medicines": "purchasedMedicines", "prescription-history": "prescriptionHistory", "future-appointments": "futureAppointments",

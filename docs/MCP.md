@@ -1,11 +1,21 @@
 # Local stdio MCP server
 
-Build the project from a local checkout, sign in with the CLI, then configure your MCP client to launch the built file:
+## In-chat sign-in
+
+In a host that supports MCP Apps, call `meuhedet_sign_in` to display the native sign-in component inside the conversation. The user enters their ID, phone, and SMS code in the component. The app calls `meuhedet_sign_in_action`, which declares `_meta.ui.visibility: ["app"]`; the agent must never call this tool or supply credentials. A random flow capability is returned only in widget metadata, not model-facing content. The component uses no direct network requests, third-party assets, browser cookie exports, or browser storage. After successful authentication, the server saves the ID and phone number in `sign-in-profile.json` alongside the session, using the same owner-only file protection. Neither value is returned to the component or model. On later sign-ins, the user selects “Send SMS code” and enters only the new code. “Use different details” deletes the saved profile and restores the ID/phone form. SMS codes are never persisted; cancelling or failing the first sign-in does not save a profile. Session expiry does not erase the saved profile. This convenience currently applies to native MCP sign-in; browser and terminal sign-in do not save these details. The local MCP server uses the same `MeuhedetAuth` implementation and private session store as the browser sign-in flow.
+
+The server must be connected to the host before the component can render. Registering a resource in this repository alone does not display it in an existing chat. In hosts without MCP Apps, agents can use the local `login --browser` fallback.
+
+Native host rendering remains unverified; protocol tests use synthetic credentials and an in-memory MCP connection. The standalone browser login and dashboard lab read have completed a live authenticated run; this does not establish completeness or validate every API reader.
+
+## Setup
+
+Build the project from a local checkout, have the agent initiate local browser sign-in, then configure your MCP client to launch the built file:
 
 ```sh
 npm install
 npm run build
-node dist/cli.js login
+node dist/cli.js login --browser
 node dist/cli.js mcp
 ```
 

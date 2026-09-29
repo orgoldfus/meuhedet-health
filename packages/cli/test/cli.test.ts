@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { ReauthenticationRequired, type MeuhedetSession } from "@meuhedet/core";
 import { runCli, type CliDependencies } from "../src/cli";
 
@@ -11,6 +11,7 @@ function fixture() {
     stdout: text => { out.push(text); }, stderr: text => { err.push(text); },
     readInput: async () => JSON.stringify(session),
     prompt: async () => "123456",
+    browserLogin: async () => { throw Error("unused"); },
     createAuth: () => ({ beginLogin: async () => ({ id: "challenge", step: "otp" }), completeLogin: async () => session, cancelLogin: async () => {} }),
     connect: value => ({ exportSession: () => value, prescriptions: async () => ({ data: [{ drug: "sample" }] }), activeMedicines: async () => ({ Items: ["active"] }), medicineApprovals: async () => ({}), purchasedMedicines: async () => ({}), prescriptionHistory: async () => ({}), labStickers: async () => [], labStickersRange: async (from, to) => ({ from, to, Items: [] }), labSticker: async (labCode, stickerId, date) => ({ labCode, stickerId, date, testSections: [] }), futureAppointments: async () => ({ data: [] }), visitApprovals: async () => [], visitReferrals: async () => [] }),
   };
@@ -42,6 +43,29 @@ it("completes a prompted OTP login without printing entered secrets", async () =
   expect(await runCli(["login"], f.deps)).toBe(0);
   expect(called).toEqual({ username: "123456", mobilePhoneNumber: "123456" });
   expect(f.out.join("")).not.toContain("123456");
+});
+
+it("starts agent-managed sign-in without terminal prompts and closes it after completion", async () => {
+  const f = fixture();
+  const close = vi.fn(async () => {});
+  f.deps.prompt = async () => { throw Error("A browser flow must not prompt in the terminal"); };
+  f.deps.browserLogin = async options => {
+    await options.save(await f.deps.connect({} as MeuhedetSession).exportSession());
+    return { url: "http://127.0.0.1:1234/#synthetic-capability", expiresAt: "2026-01-01T00:10:00.000Z", completion: Promise.resolve(undefined), close };
+  };
+  expect(await runCli(["login", "--browser"], f.deps)).toBe(0);
+  expect(f.out.join("")).toContain("status: awaiting_user");
+  expect(f.out.join("")).toContain("sessionSaved: true");
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(await runCli(["status"], f.deps)).toBe(0);
+  expect(f.out.at(-1)).toBe('{"sessionSaved":true}\n');
+});
+
+it("rejects unknown login flags before opening a page or making an authentication request", async () => {
+  const f = fixture();
+  f.deps.browserLogin = vi.fn(f.deps.browserLogin);
+  expect(await runCli(["login", "--browser", "--unknown"], f.deps)).toBe(2);
+  expect(f.deps.browserLogin).not.toHaveBeenCalled();
 });
 
 it("does not echo secrets from a failed upstream read", async () => {

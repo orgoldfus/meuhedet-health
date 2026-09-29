@@ -15,7 +15,7 @@ it("starts the built stdio entry and never prints clinical content on stdout out
   await client.connect(transport);
   try {
     const tools = (await client.listTools()).tools;
-    expect(tools.length).toBe(12);
+    expect(tools.length).toBe(14);
     const status = await client.callTool({ name: "meuhedet_session_status", arguments: {} });
     expect(JSON.stringify(status)).toContain("sessionSaved");
     expect(stderr).toBe("");
