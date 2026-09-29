@@ -1,0 +1,54 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Environment, credentials, and authentication state
+.env
+.env.*
+!.env.example
+credentials/
+secrets/
+auth-sessions/
+sessions/
+*.cookie
+*.cookies
+
+# Private browser and network captures
+captures/
+browser-captures/
+network-captures/
+*.har
+*.pcap
+*.pcapng
+
+# Personal health data and exports
+private/
+health-exports/
+medical-exports/
+exports/
+
+# Local release artifacts and registry config
+*.tgz
+.npmrc
+
+# Logs and local tooling
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+
+# Internal research, handoffs, local tooling, and archived documentation
+/.internal/
+
+# Local fixtures symlink (do not ship)
+/docs/research/fixtures
+
+# Local session files and private key material
+session.json
+*.pem
+*.key
+*.p12
+*.pfx

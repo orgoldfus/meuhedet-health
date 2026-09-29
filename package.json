@@ -1,0 +1,86 @@
+{
+  "name": "meuhedet-health",
+  "version": "0.1.0",
+  "description": "Node.js library, CLI, and MCP server for Meuhedet healthcare records.",
+  "keywords": [
+    "meuhedet",
+    "healthcare",
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "modelcontextprotocol",
+    "health-records",
+    "agent-skills",
+    "israel",
+    "cli",
+    "library"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true
+  },
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "npm run build",
+    "cli": "node dist/cli.js",
+    "mcp:local": "node dist/cli.js mcp",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm test",
+    "pretest": "npm run build"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.1.0",
+    "@types/node": "24.13.6",
+    "tsdown": "0.23.0",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp.d.ts",
+      "import": "./dist/mcp.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "meuhedet-health": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "docs/README.md",
+    "docs/AUTH.md",
+    "docs/CAPABILITIES.md",
+    "docs/CLI.md",
+    "docs/MCP.md",
+    "docs/API-SOURCES.md",
+    "docs/research/MEUHEDET_PUBLIC_ASSETS.md",
+    "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/node": "2.0.0",
+    "@modelcontextprotocol/server": "^2.1.0",
+    "cheerio": "1.2.0",
+    "entities": "8.1.0",
+    "tough-cookie": "^6.0.2",
+    "zod": "4.6.5"
+  }
+}

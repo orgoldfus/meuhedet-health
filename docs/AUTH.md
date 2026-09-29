@@ -1,0 +1,9 @@
+# Authentication and sessions
+
+The CLI `login` command prompts interactively for an ID number, mobile number, and SMS code. It parses the known first-step login form and dynamically looks for OTP controls rather than assuming a fixed OTP endpoint or field name. OTP form parsing and success/failure handling have only been tested with synthetic fixtures. The implementation then completes the OIDC callback and checks that the lab-sticker endpoint returns JSON with the expected `Stickers` collection before saving a session. No live account run of this CLI has been performed; portal changes or an unfamiliar form may cause login to fail closed.
+
+The public first-step form fields have been observed in Meuhedet's public page source. The CLI OTP exchange, callback, and authenticated read remain unverified. The OTP parser supports six unnamed digit inputs; a hidden combined code field is accepted by the parser only when the returned form supplies it unambiguously alongside those controls. Its actual field name was not captured. See [API source notes](API-SOURCES.md).
+
+The session file contains cookies and is a credential. It is stored under `~/.config/meuhedet-health/session.json` by default (or the platform config directory). Set `MEUHEDET_CONFIG_DIR` or `XDG_CONFIG_HOME` to select another location. Files are created with owner-only permissions where supported. `status` reports whether a local session file exists; it does not verify that Meuhedet still accepts it. A 401 response clears the saved session.
+
+`session-import` accepts serialized session JSON from a private file or stdin. Use only a session for your own account. Keep it outside shell history and never paste it into a chat, issue, or commit. Do not share raw HAR files: they can contain cookies, identifiers, and health data. `logout` deletes the local session; it does not revoke the portal session.

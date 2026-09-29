@@ -1,0 +1,11 @@
+{
+  "name": "@meuhedet/cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Private local CLI for Meuhedet reads.",
+  "license": "MIT",
+  "engines": { "node": ">=22.0.0" },
+  "type": "module",
+  "exports": { "./store": "./src/store.ts" },
+  "dependencies": { "@meuhedet/core": "0.1.0" }
+}

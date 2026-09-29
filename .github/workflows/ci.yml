@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        node-version: [22.19.0, 24.x]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      # npm 10 runs every install script. npm 12 skips any that allowScripts does not name.
+      # Strict mode fails that install instead of skipping, on the npm that understands it.
+      - name: Install
+        run: |
+          case $(npm -v) in
+            10.*) npm ci ;;
+            *) npm ci --strict-allow-scripts ;;
+          esac
+      - run: npm run check
+
+  # Build on the supported toolchain, then verify the packed local artifact on the declared Node floor.
+  floor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci --strict-allow-scripts
+      - name: Pack the tarball
+        run: |
+          npm run build
+          mkdir -p "$RUNNER_TEMP/floor"
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/floor"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22.0.0
+          package-manager-cache: false
+      - name: Install the tarball and smoke-test it on the floor
+        env:
+          MEUHEDET_CONFIG_DIR: ${{ runner.temp }}/floor-config
+        run: |
+          mkdir -p "$RUNNER_TEMP/floor-install"
+          cd "$RUNNER_TEMP/floor-install"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund "$RUNNER_TEMP"/floor/meuhedet-health-*.tgz
+          node "$GITHUB_WORKSPACE/scripts/smoke.mjs" "$PWD/node_modules/.bin/meuhedet-health"

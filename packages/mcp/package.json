@@ -1,0 +1,15 @@
+{
+  "name": "@meuhedet/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local stdio MCP server for Meuhedet reads.",
+  "license": "MIT",
+  "engines": { "node": ">=22.0.0" },
+  "type": "module",
+  "dependencies": {
+    "@meuhedet/core": "0.1.0",
+    "@meuhedet/cli": "0.1.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "4.6.5"
+  }
+}
