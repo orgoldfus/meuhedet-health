@@ -1,8 +1,10 @@
-import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
+import { McpServer, createRequestStateCodec, type CallToolResult } from "@modelcontextprotocol/server";
+import { randomBytes } from "node:crypto";
 import * as z from "zod/v4";
 import { MeuhedetClient, MeuhedetError, ReauthenticationRequired, safeClinical, type MeuhedetSession } from "@meuhedet/core";
 import { FileSessionStore, type SessionStore } from "@meuhedet/cli/store";
 import { registerSignIn, type SignInAuth, type LoginDetails } from "./sign-in";
+import { registerAppointmentTools, type AppointmentToolsOptions } from "./appointment-tools";
 
 export interface ReaderOperations {
   labStickers(): Promise<unknown>;
@@ -24,6 +26,10 @@ export interface McpOptions {
   connect?: (session: MeuhedetSession) => ReaderOperations;
   createAuth?: () => SignInAuth;
   now?: () => number;
+  directory?: AppointmentToolsOptions["directory"];
+  appointments?: AppointmentToolsOptions["appointments"];
+  bookingJournal?: AppointmentToolsOptions["bookingJournal"];
+  allowBooking?: boolean;
 }
 const MAX_JSON_BYTES = 128 * 1024;
 function calendarDate(value: string, compact = false): boolean {
@@ -51,11 +57,25 @@ function failure(code: string, instruction: string): CallToolResult {
 export function createMeuhedetMcpServer(options: McpOptions = {}): McpServer {
   const store = options.store ?? new FileSessionStore<MeuhedetSession>();
   const connect = options.connect ?? ((session: MeuhedetSession) => new MeuhedetClient({ session }));
+  const approvalState = createRequestStateCodec<{ proposalId: string; nonce: string }>({
+    key: randomBytes(32), ttlSeconds: 300, bind: ctx => `${ctx.mcpReq.method}:${ctx.sessionId ?? "stdio"}`,
+  });
   const server = new McpServer({ name: "meuhedet-health", version: "0.1.0" }, {
-    instructions: "Read-only Meuhedet account data. Use meuhedet_sign_in for in-chat authentication when supported; login --browser is the fallback. Never call the app-only sign-in action from the model. Source coverage and completeness are not established by an empty result. Preserve Hebrew text, dates and units. Do not assume absence of care from a missing row. Do not send credentials in tool arguments.",
+    requestState: { verify: approvalState.verify },
+    instructions: "Meuhedet account reads and public doctor search. Booking requires an exact reviewed proposal, explicit user intent and host-mediated confirmation; execution is disabled by default. Never book during read-only or development tasks. Use meuhedet_sign_in for in-chat authentication when supported; login --browser is the fallback. Never call the app-only sign-in action from the model. Preserve Hebrew text, dates and units. Do not assume absence of care from a missing row. Do not send credentials in tool arguments.",
   });
   let tail: Promise<unknown> = Promise.resolve();
-  registerSignIn(server, { store, profileStore: options.profileStore, createAuth: options.createAuth, now: options.now });
+  function serialize<T>(execute: () => Promise<T>): Promise<T> {
+    const task = tail.then(execute, execute);
+    tail = task.then(() => undefined, () => undefined);
+    return task;
+  }
+  registerSignIn(server, { store: {
+    load: () => serialize(() => store.load()), save: session => serialize(() => store.save(session)), delete: () => serialize(() => store.delete()),
+  }, profileStore: options.profileStore, createAuth: options.createAuth, now: options.now });
+  registerAppointmentTools(server, { store, serialize, directory: options.directory, appointments: options.appointments,
+    bookingJournal: options.bookingJournal, allowBooking: options.allowBooking, now: options.now,
+    mintApproval: (proposalId, nonce, ctx) => approvalState.mint({ proposalId, nonce }, ctx) });
   server.registerTool("meuhedet_session_status", {
     description: "Check only whether a local session file exists. This does not verify validity with Meuhedet.",
     inputSchema: z.object({}).strict(),
@@ -83,9 +103,7 @@ export function createMeuhedetMcpServer(options: McpOptions = {}): McpServer {
         return failure("READ_FAILED", "The read failed. Check the session with meuhedet-health status and retry.");
       }
     };
-    const task = tail.then(execute, execute);
-    tail = task.then(() => undefined, () => undefined);
-    return task;
+    return serialize(execute);
   }
   server.registerTool("meuhedet_prescriptions", {
     description: "Read the current account prescription summary. The portal's retention and completeness are unverified.",

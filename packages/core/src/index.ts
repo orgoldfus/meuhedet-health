@@ -4,3 +4,5 @@ export * from "./session";
 export * from "./transport";
 export * from "./auth";
 export * from "./client";
+export * from "./directory";
+export * from "./appointments";

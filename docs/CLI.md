@@ -14,7 +14,7 @@ The CLI has no published npm installation instructions yet. Do not use `npx meuh
 |---|---|
 | `login --browser` | Agent starts a temporary local sign-in form and opens the returned link for the user. Waits for saved session or safe failure; no terminal input. |
 | `login --help` | Shows sign-in options. |
-| `login` | Interactively asks for ID number, mobile number, and SMS code. Parses the known first-step form and dynamically looks for OTP controls, then checks for an authenticated lab-sticker response before saving. OTP form parsing uses synthetic fixtures only; no live account run was done, and unfamiliar portal changes may be rejected. |
+| `login` | Interactively asks for ID number, mobile number, and SMS code. Parses the known first-step form and dynamically looks for OTP controls, then checks for an authenticated future-appointment response before saving. OTP form parsing uses synthetic fixtures only; no live account run was done, and unfamiliar portal changes may be rejected. |
 | `session-import [--file PATH]` | Reads serialized session JSON from a private file or stdin and validates it before saving. |
 | `status` | Reports whether a local session file exists; does not verify it upstream. |
 | `logout` | Deletes the local session file. |
@@ -33,3 +33,5 @@ The CLI has no published npm installation instructions yet. Do not use `npx meuh
 | `help` | Prints command usage. |
 
 Read commands emit JSON. Clinical fields are passed through a privacy filter and output is size-limited. Errors omit upstream response bodies, credentials, and invalid argument values. The lab range and detail commands and medicine reads follow the public frontend's request shapes; standalone CLI authenticated response behavior and historical completeness remain unverified. Dashboard `lab-stickers` and `prescriptions` are summaries. Standalone CLI reads and login have not been tested against a live account. An empty result is not evidence of complete history.
+
+Public doctor search and the guarded prepare/execute appointment workflow are currently exposed through MCP and the TypeScript library, not new CLI commands. See [appointment workflow](APPOINTMENTS.md). Login validation uses future appointments rather than laboratory data.

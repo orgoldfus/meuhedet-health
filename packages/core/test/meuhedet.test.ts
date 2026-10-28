@@ -79,8 +79,8 @@ describe("login fail-closed behavior", () => {
     const fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = input.toString();
       sent.push({ url, method: init?.method ?? "GET", body: init?.body?.toString() ?? "" });
-      if (url.includes("/umbraco/api/PersonalDashboardApi/LabStickers"))
-        return new Response(JSON.stringify({ Stickers: [] }), { headers: { "content-type": "application/json" } });
+      if (url.includes("/umbraco/api/AppointmentApi/FutureAppointmentsOnly"))
+        return new Response(JSON.stringify({ Items: [] }), { headers: { "content-type": "application/json" } });
       if (url === PORTAL_ORIGIN + "/signin-oidc")
         return html("<html>portal</html>", PORTAL_ORIGIN + "/account");
       if (url.endsWith("/Account/Verify"))
@@ -126,7 +126,7 @@ describe("login fail-closed behavior", () => {
     await expect(auth.beginLogin({ username: "123456789", mobilePhoneNumber: "0521234567" }))
       .rejects.toMatchObject({ code: "OTP_FORM_UNVERIFIED" });
     expect(calls).toEqual([
-      `GET ${new URL("/הבדיקות-שלי/בדיקות-מעבדה/", PORTAL_ORIGIN).href}`,
+      `GET ${PORTAL_ORIGIN + "/"}`,
       "GET https://login.meuhedet.co.il/Account/FirstStepLogin",
       "POST https://login.meuhedet.co.il/Account/FirstStepLogin",
     ]);

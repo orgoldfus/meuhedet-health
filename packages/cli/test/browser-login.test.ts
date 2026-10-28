@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { request as httpRequest } from "node:http";
-import type { MeuhedetSession } from "@meuhedet/core";
+import { AuthenticationError, type MeuhedetSession } from "@meuhedet/core";
 import { startBrowserLogin } from "../src/browser-login";
 
 const flows: Awaited<ReturnType<typeof startBrowserLogin>>[] = [];
@@ -23,6 +23,20 @@ async function fixture(timeoutMs?: number) {
   return { auth, save, flow, request, url, headers };
 }
 const credentials = { username: "123456789", mobilePhoneNumber: "0521234567" };
+it("retains only safe form diagnostics after an authentication failure", async () => {
+  const f = await fixture();
+  f.auth.beginLogin.mockRejectedValueOnce(new AuthenticationError("OTP_FORM_UNVERIFIED", 200, {
+    formCount: 0, postFormCount: 0, csrfPostFormCount: 0, codeFieldCount: 0, unnamedDigitCount: 0, recognizedDigitCount: 0, candidateCount: 0,
+    loginFormReturned: false, validationErrorPresent: false,
+    privateField: "must-not-escape",
+  } as never));
+  const response = await f.request("/credentials", credentials);
+  expect(await response.text()).not.toMatch(/must-not-escape|123456789|0521234567/);
+  const error = await f.flow.completion;
+  expect(error).toMatchObject({ code: "OTP_FORM_UNVERIFIED", diagnostics: { formCount: 0, candidateCount: 0 } });
+  expect(JSON.stringify(error)).not.toContain("must-not-escape");
+  expect(f.save).not.toHaveBeenCalled();
+});
 
 it("completes sign-in and persists only the verified session without returning credentials", async () => {
   const f = await fixture();

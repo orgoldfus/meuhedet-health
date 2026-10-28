@@ -108,6 +108,7 @@ export async function runCli(argv: string[], overrides: Partial<CliDependencies>
           const error = await flow.completion;
           if (error) {
             deps.stdout(`error:\n  code: ${JSON.stringify(error.code)}\n  instruction: "Check the sign-in error before starting a new meuhedet-health login --browser flow."\n`);
+            if (error.diagnostics) deps.stdout(`  diagnostics: ${JSON.stringify(error.diagnostics)}\n`);
             return 1;
           }
           deps.stdout("sessionSaved: true\n");

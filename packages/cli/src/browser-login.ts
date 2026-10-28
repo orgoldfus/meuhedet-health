@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { MeuhedetError, type MeuhedetSession } from "@meuhedet/core";
+import { AuthenticationError, MeuhedetError, type AuthenticationDiagnostics, type MeuhedetSession } from "@meuhedet/core";
 import { SessionStoreError } from "./store";
 import { loginPage } from "./login-page";
 
@@ -11,7 +11,7 @@ interface Auth {
 }
 export type LoginState = "credentials" | "otp" | "working" | "complete" | "failed" | "cancelled" | "expired";
 export class BrowserLoginError extends Error {
-  constructor(readonly code: string) { super("Local sign-in did not complete. Start a new login --browser flow."); }
+  constructor(readonly code: string, readonly diagnostics?: AuthenticationDiagnostics) { super("Local sign-in did not complete. Start a new login --browser flow."); }
 }
 export async function startBrowserLogin(options: {
   auth: Auth;
@@ -29,13 +29,13 @@ export async function startBrowserLogin(options: {
   let timer: ReturnType<typeof setTimeout>;
   let settle!: (error?: BrowserLoginError) => void;
   const completion = new Promise<BrowserLoginError | undefined>(resolve => { settle = resolve; });
-  const finish = (next: LoginState, code?: string) => {
+  const finish = (next: LoginState, code?: string, diagnostics?: AuthenticationDiagnostics) => {
     if (finished) return;
     finished = true;
     state = next;
     challengeId = "";
     clearTimeout(timer);
-    settle(code ? new BrowserLoginError(code) : undefined);
+    settle(code ? new BrowserLoginError(code, diagnostics) : undefined);
   };
   const respond = (res: ServerResponse, status: number, value: object) => {
     res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
@@ -48,8 +48,11 @@ export async function startBrowserLogin(options: {
     res.setHeader("content-security-policy", `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; connect-src 'self'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'`);
     void handle(req, res).catch(error => {
       const code = error instanceof MeuhedetError || error instanceof SessionStoreError ? error.code : "BROWSER_LOGIN_FAILED";
-      respond(res, 500, { state: "failed", message: "Sign-in failed. Your agent can check the sign-in error." });
-      finish("failed", code);
+      const message = code === "LOGIN_NOT_ADVANCED" ? "Meuhedet did not advance to the SMS-code step. Check your details privately before another attempt."
+        : code === "OTP_FORM_UNVERIFIED" ? "The SMS-code form could not be verified. Your agent can inspect safe structural diagnostics."
+        : "Sign-in failed. Your agent can check the sign-in error.";
+      respond(res, 500, { state: "failed", message });
+      finish("failed", code, error instanceof AuthenticationError ? error.diagnostics : undefined);
     });
   });
   async function handle(req: IncomingMessage, res: ServerResponse) {

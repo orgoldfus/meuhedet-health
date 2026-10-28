@@ -4,6 +4,8 @@ This project handles highly sensitive health data and authentication cookies. Do
 
 No private vulnerability-reporting endpoint is configured in this checkout. If you have a security report, contact the project maintainer through a private channel they have explicitly provided. Do not post exploit details or sensitive data publicly. Ordinary bugs should also omit credentials and patient information.
 
-The project is an unofficial client. Report vulnerabilities in Meuhedet's own systems directly to Meuhedet through its security contact. This client currently documents frontend-derived endpoint paths, not a supported or stable public API. The authenticated flow has not been validated with a live account.
+The project is an unofficial client. Report vulnerabilities in Meuhedet's own systems directly to Meuhedet through its security contact. This client currently documents frontend-derived endpoint paths, not a supported or stable public API. The new authenticated appointment flow has not been validated with a live account.
 
 Local sessions are credentials. `logout` removes the local file only; it does not revoke a session at Meuhedet.
+
+Booking requires an explicit feature flag, host-mediated human confirmation, signed proposal state, fresh validation and a durable exclusive attempt marker. Do not retry uncertain submissions or remove attempt markers automatically. Public search never sends account cookies to its search provider. The server does not log payloads, approval envelopes, configuration keys or upstream error bodies.

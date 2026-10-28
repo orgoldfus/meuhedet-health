@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added public doctor search, modern monthly/daily appointment reads and five-minute appointment proposals.
+- Added disabled-by-default, host-confirmed single-attempt booking with signed approval state and persistent duplicate prevention; authenticated contracts remain unverified.
+- Changed login validation to future appointments, avoiding laboratory reads.
+
 - Added native MCP Apps sign-in with app-only credential submissions and widget-only flow capabilities.
 
 - Added agent-managed local browser sign-in with a ten-minute lifetime, protected local submissions, private session storage, and safe terminal output.
