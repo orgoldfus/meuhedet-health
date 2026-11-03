@@ -38,12 +38,12 @@
     "pretest": "npm run build"
   },
   "devDependencies": {
-    "@modelcontextprotocol/client": "2.1.0",
-    "@types/node": "26.6.3",
-    "tsdown": "0.23.0",
+    "@modelcontextprotocol/client": "2.4.0",
+    "@types/node": "26.6.6",
+    "tsdown": "0.23.4",
     "tsx": "4.23.15",
     "typescript": "7.0.2",
-    "vitest": "5.0.2"
+    "vitest": "5.0.5"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
