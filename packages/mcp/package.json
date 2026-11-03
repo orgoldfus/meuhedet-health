@@ -9,7 +9,7 @@
   "dependencies": {
     "@meuhedet/core": "0.1.0",
     "@meuhedet/cli": "0.1.0",
-    "@modelcontextprotocol/server": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.4.0",
     "zod": "4.6.5"
   }
 }
